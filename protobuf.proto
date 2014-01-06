@@ -1,0 +1,35 @@
+message Message {
+  required MessageType type = 1;
+  optional Election election_content = 2;
+  optional State state_content = 3;
+
+  enum MessageType {
+	STATE = 0;
+	ELECTION = 1;
+	ENTRY_REQUEST = 2;
+  }
+
+  message Election {
+	required int64 timestamp = 1;
+	required int32 state_id = 2;
+	required int32 node_id = 3;
+  }
+
+  message State {
+	required int64 state_id = 1;
+	repeated NodeDescription nodes = 2;
+	repeated Variable variables = 3;
+  }
+
+  message NodeDescription {
+	required string ip = 1;
+	required int32 port = 2;
+	required int32 node_id = 3;
+  }
+
+  message Variable {
+	required string name = 1;
+	required int64 value = 2;
+	repeated NodeDescription owners = 4;
+  }
+}
