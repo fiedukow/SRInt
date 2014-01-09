@@ -21,12 +21,36 @@
     <ClCompile Include="protobuf.pb.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="DB.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DBObserver.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SRInt.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="UI.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="zhelpers.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="protobuf.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DB.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DBObserver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SRInt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="UI.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
