@@ -43,6 +43,18 @@ void SRInt::dhSetCallback(const std::string& name, NetworkCallback& callback) {
 	commands_queue_.push(std::bind(&DB::setCallback, &db_, name, callback));
 }
 
+VariablesSnapshot SRInt::dhGetSnapshot() {
+	return db_.state_snapshot();
+}
+
+void SRInt::addObserver(DBObserver* observer) {
+	db_.addObserver(observer);
+}
+
+void SRInt::removeObserver(DBObserver* observer) {
+	db_.removeObserver(observer);
+}
+
 void SRInt::SendState() {
 	zmq::context_t context(1);
 	zmq::socket_t client = zmq::socket_t(context, ZMQ_PUSH);
@@ -64,13 +76,6 @@ void SRInt::ReceiveState() {
 	Message msg;
 	msg.ParseFromString(received);
 	db_.setState(msg.release_state_content());	
-
-	//std::cout << "Id " << last_message->state_content().state_id() << std::endl;
-	//for (auto i = last_message->state_content().variables().begin();
-	//	i != last_message->state_content().variables().end();
-	//	++i)
-	//	std::cout << i->name() << " = " << i->value() << std::endl;
-
 }
 
 void SRInt::EngageSingleUserCommand() {

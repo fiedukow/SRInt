@@ -5,11 +5,15 @@ NetworkAutoObserver::NetworkAutoObserver(NetworkCallback& callback, const std::s
 	: callback_(callback), nameFilter_(nameFilter) {
 }
 
+void NetworkAutoObserver::CallDoneNotify(const std::string& call_message, bool status, DB& db) {
+	// Nothign to be done here.
+}
+
 void NetworkAutoObserver::LocalChangeNotify(const std::string& name, DB& db) {
 	// Nothign to be done here.
 }
 
-void NetworkAutoObserver::GlobalChangeNotify(const std::string& name, DB& db) {
+void NetworkAutoObserver::GlobalChangeNotify(const std::string& name, int old_value, int new_value, DB& db) {
 	if (nameFilter_ != name)
 		return;
 	callback_(name, db);

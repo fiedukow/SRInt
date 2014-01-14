@@ -4,18 +4,12 @@
 #include "DBObserver.h"
 #include "BlockingQueue.hpp"
 #include "protobuf.pb.h"
+#include "DB.h"
 
-class DB;
 typedef std::function<void ()> UserCommand;
-typedef __int64 int64;
 
 class SRInt {
 public:
-	class Observer {
-		void CommandApplied(const std::string& command);
-		void StateReceived();
-	};
-
 	SRInt(DB& db);
 	~SRInt();
 
@@ -27,6 +21,10 @@ public:
 	int64 dhGet(const std::string& name);
 	void dhSet(const std::string& name, int64 value);
 	void dhSetCallback(const std::string& name, NetworkCallback& callback);
+	VariablesSnapshot dhGetSnapshot();
+
+	void addObserver(DBObserver* observer);
+	void removeObserver(DBObserver* observer);
 
 private:
 	void SendState();

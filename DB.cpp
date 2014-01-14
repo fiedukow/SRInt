@@ -1,5 +1,6 @@
 #include "DB.h"
 #include "protobuf.pb.h"
+#include <sstream>
 
 DB::DB(Message_State* baseState, const Message_NodeDescription* owner)
 	: state_(baseState, owner), owner_node_(owner) {
@@ -9,7 +10,9 @@ DB::~DB() {
 }
 
 void DB::setState(Message_State* state) {
-	state_ = StateHelper(state, owner_node_);
+	StateHelper new_state(state, owner_node_);
+	diffStatesAndNotifyObserver(new_state);
+	state_ = new_state;
 }
 
 Message_State* DB::state() {
@@ -17,57 +20,112 @@ Message_State* DB::state() {
 }
 
 // Requested interface
-void DB::create(const std::string& name) {
+void DB::create(const std::string& name) {	
+	std::string done_message = std::string("Created ") + name;	
 	if (state_.exists(name)) {
 		state_.ensure_ownership(name);
+		notifyCallDoneObservers(done_message, false);
 		return;
 	}
 	
 	state_.add_variable(name);
+	notifyCallDoneObservers(done_message, true);
 }
 
 void DB::free(const std::string& name) {
-	if (!state_.exists(name))
+	std::string done_message = std::string("Free ") + name;	
+	if (!state_.exists(name)) {
+		notifyCallDoneObservers(done_message, false);
 		return;
+	}
 
+	notifyCallDoneObservers(done_message, true);
 	state_.remove_ownership(name);
 }
 
 int64 DB::get(const std::string& name) {
-	if (!state_.exists(name))
-		throw std::runtime_error("DB::get: Variable does not exist.");	
+	std::string done_message = std::string("Variable ") + name + std::string(" obtained");
+	if (!state_.exists(name)) {
+		notifyCallDoneObservers(done_message, false);
+		throw std::runtime_error("DB::get error");
+	}
 	state_.ensure_ownership(name);
+	notifyCallDoneObservers(done_message, true);
 	return state_.get(name);
 }
 
 void DB::set(const std::string& name, int64 value) {
-	if (!state_.exists(name))
-		throw std::runtime_error("DB::set: Variable does not exist.");
+	std::stringstream ss;
+	ss << "Set " << name << " to " << value;
+	std::string done_message = ss.str();	
+
+	if (!state_.exists(name)) {
+		notifyCallDoneObservers(done_message, false);
+		return;
+	}
+
 	state_.ensure_ownership(name);
 	state_.set(name, value);
+	notifyCallDoneObservers(done_message, true);
 }
 
 void DB::setCallback(const std::string& name, NetworkCallback& callback) {
+	std::string done_message = std::string("Callback on ") + name + std::string(" created");	
+
 	DBObserverPtr observer(new NetworkAutoObserver(callback, name));
 	addObserver(observer);
+	notifyCallDoneObservers(done_message, true);
 }
 
-void DB::addObserver(DBObserverPtr observer) {
+VariablesSnapshot DB::state_snapshot() {
+	std::string done_message = "Snapshot obtained";
+	notifyCallDoneObservers(done_message, true);
+	return state_.state_snapshot();
+}
+
+
+void DB::addObserver(DBObserver* observer) {
 	observers_.push_back(observer);
 }
 
-void DB::removeObserver(DBObserverPtr observer) {
+void DB::removeObserver(DBObserver* observer) {
 	observers_.remove(observer);
 }
 
+void DB::addObserver(DBObserverPtr observer) {
+	owned_observers_.push_back(observer);
+}
+
+void DB::removeObserver(DBObserverPtr observer) {
+	owned_observers_.remove(observer);
+}
+
+void DB::diffStatesAndNotifyObserver(StateHelper& new_state) {
+	StateHelper::Changes changes = state_.diff(new_state);
+	for(StateHelper::Change& change : changes) {
+		notifyGlobalChangeObservers(change.name, change.before, change.after);
+	}
+}
+
+void DB::notifyCallDoneObservers(const std::string& command, bool status) {
+	for (DBObserver* observer : observers_)
+		observer->CallDoneNotify(command, status, *this);
+	for (DBObserverPtr observer : owned_observers_)
+		observer->CallDoneNotify(command, status, *this);
+}
+
 void DB::notifyLocalChangeObservers(const std::string& name) {
-	for (DBObserverPtr observer : observers_)
+	for (DBObserver* observer : observers_)
+		observer->LocalChangeNotify(name, *this);
+	for (DBObserverPtr observer : owned_observers_)
 		observer->LocalChangeNotify(name, *this);
 }
 
-void DB::notifyGlobalChangeObservers(const std::string& name) {
-	for (DBObserverPtr observer : observers_)
-		observer->GlobalChangeNotify(name, *this);
+void DB::notifyGlobalChangeObservers(const std::string& name, int old_value, int new_value) {
+	for (DBObserver* observer : observers_)
+		observer->GlobalChangeNotify(name, old_value, new_value, *this);
+	for (DBObserverPtr observer : owned_observers_)
+		observer->GlobalChangeNotify(name, old_value, new_value, *this);
 }
 
 StateHelper::StateHelper(Message_State* state, const Message_NodeDescription* owner)
@@ -140,6 +198,14 @@ int64 StateHelper::get(const std::string& name) {
 	return var->value();
 }
 
+VariablesSnapshot StateHelper::state_snapshot() {
+	VariablesSnapshot snapshot;
+	for (Message_Variable& var : *(state_->mutable_variables()))
+		snapshot.push_back(std::make_pair(var.name(), var.value()));
+
+	return snapshot;
+}
+
 bool StateHelper::is_owner(const std::string& name) {
 	Message_Variable* var = find_variable(name);
 	if (!var)
@@ -155,6 +221,16 @@ bool StateHelper::is_owner(const std::string& name) {
 
 Message_State* StateHelper::state() {
 	return state_;
+}
+
+StateHelper::Changes StateHelper::diff(StateHelper& new_helper) {
+	std::vector<StateHelper::Change> changes;
+	for (Message_Variable& var : *(state_->mutable_variables())) {
+		Message_Variable* new_var = new_helper.find_variable(var.name());
+		if (new_var && new_var->value() != var.value())
+			changes.push_back(Change({ var.name(), var.value(), new_var->value() }));
+	}
+	return changes;
 }
 
 Message_Variable* StateHelper::find_variable(const std::string& name) {
