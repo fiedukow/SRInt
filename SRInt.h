@@ -5,6 +5,7 @@
 #include "BlockingQueue.hpp"
 #include "protobuf.pb.h"
 #include "DB.h"
+#include "zmq.hpp"
 
 typedef std::function<void ()> UserCommand;
 
@@ -33,5 +34,9 @@ private:
 
 	DB& db_;
 	std::queue<UserCommand> commands_queue_;
+
+	zmq::context_t context_;
+	zmq::socket_t client_;
+	zmq::socket_t server_;	
 };
 

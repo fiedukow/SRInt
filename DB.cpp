@@ -12,7 +12,9 @@ DB::~DB() {
 void DB::setState(Message_State* state) {
 	StateHelper new_state(state, owner_node_);
 	diffStatesAndNotifyObserver(new_state);
+	Message_State* old_state = state_.state();
 	state_ = new_state;
+	delete old_state;
 }
 
 Message_State* DB::state() {

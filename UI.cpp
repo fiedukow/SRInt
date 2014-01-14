@@ -25,7 +25,7 @@ void UI::operator()() {
 
 void UI::CallDoneNotify(const std::string& call_message, bool status, DB& db) {
 	if (!status) {
-		std::cout << std::left << "Blad przy poleceniu: \"" << call_message << "\"." << std::endl;
+		std::cout << "\b\b\b" << "Blad przy poleceniu: \"" << call_message << "\"." << std::endl;
 		showPrompt();
 	}
 }
@@ -34,7 +34,7 @@ void UI::LocalChangeNotify(const std::string& name, DB& db) {
 }
 
 void UI::GlobalChangeNotify(const std::string& name, int old_value, int new_value, DB& db) {
-	std::cout << std::left << "W sieci ktos zmienil zmienna \"" << name << "\" z wartosci " << old_value << " na wartosc " << new_value << std::endl;
+	std::cout << "\b\b\b" << "W sieci ktos zmienil zmienna \"" << name << "\" z wartosci " << old_value << " na wartosc " << new_value << std::endl;
 	showPrompt();
 }
 

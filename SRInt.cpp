@@ -8,7 +8,8 @@
 #include "protobuf.pb.h"
 
 SRInt::SRInt(DB& db) 
-	: db_(db) {
+	: db_(db), context_(1), client_(context_, ZMQ_PUSH), server_(context_, ZMQ_PULL) {
+	server_.bind("tcp://*:5555");
 }
 
 SRInt::~SRInt() {
@@ -16,6 +17,7 @@ SRInt::~SRInt() {
 
 void SRInt::operator()() {
 	UserCommand command;
+	client_.connect("tcp://169.254.190.225:5555");
 	while (true) {
 		SendState();
 		ReceiveState();
@@ -56,23 +58,15 @@ void SRInt::removeObserver(DBObserver* observer) {
 }
 
 void SRInt::SendState() {
-	zmq::context_t context(1);
-	zmq::socket_t client = zmq::socket_t(context, ZMQ_PUSH);
-	client.connect("tcp://169.254.190.225:5555");
-
 	Message msg;
 	msg.set_type(Message_MessageType_STATE);
 	msg.set_allocated_state_content(db_.state());
-	s_send(client, msg.SerializeAsString());
+	s_send(client_, msg.SerializeAsString());
 	msg.release_state_content(); // we are not owners of this state
 }
 
 void SRInt::ReceiveState() {
-	zmq::context_t context(1);
-	zmq::socket_t socket(context, ZMQ_PULL);
-	socket.bind("tcp://*:5555");
-
-	std::string received = s_recv(socket);
+	std::string received = s_recv(server_);
 	Message msg;
 	msg.ParseFromString(received);
 	db_.setState(msg.release_state_content());	
