@@ -12,6 +12,8 @@ typedef __int64 int64;
 class StateHelper {
 public:
 	StateHelper(Message_State* state, const Message_NodeDescription* owner);
+	~StateHelper();
+
 	bool exists(const std::string& name);
 	void ensure_ownership(const std::string& name);
 	void remove_ownership(const std::string& name);
@@ -24,6 +26,7 @@ public:
 private:
 	Message_Variable* find_variable(const std::string& name);
 
+public:
 	Message_State* state_;
 	const Message_NodeDescription* owner_node_;
 };

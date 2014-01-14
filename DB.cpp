@@ -74,6 +74,9 @@ StateHelper::StateHelper(Message_State* state, const Message_NodeDescription* ow
 	: state_(state), owner_node_(owner) {
 }
 
+StateHelper::~StateHelper() {
+}
+
 bool StateHelper::exists(const std::string& name) {
 	return find_variable(name) != NULL;
 }

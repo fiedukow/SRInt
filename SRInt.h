@@ -3,6 +3,7 @@
 #include <functional>
 #include "DBObserver.h"
 #include "BlockingQueue.hpp"
+#include "protobuf.pb.h"
 
 class DB;
 typedef std::function<void ()> UserCommand;
@@ -10,6 +11,11 @@ typedef __int64 int64;
 
 class SRInt {
 public:
+	class Observer {
+		void CommandApplied(const std::string& command);
+		void StateReceived();
+	};
+
 	SRInt(DB& db);
 	~SRInt();
 
@@ -23,7 +29,11 @@ public:
 	void dhSetCallback(const std::string& name, NetworkCallback& callback);
 
 private:
+	void SendState();
+	void ReceiveState();
+	void EngageSingleUserCommand();
+
 	DB& db_;
-	BlockingQueue<UserCommand> commands_queue_;
+	std::queue<UserCommand> commands_queue_;
 };
 
