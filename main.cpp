@@ -4,6 +4,7 @@
 #include "zmq.hpp"
 #include <string>
 #include <iostream>
+#include <thread>
 #include "zhelpers.hpp"
 #include "protobuf.pb.h"
 #ifndef _WIN32
@@ -65,6 +66,7 @@ int main () {
 
 	SRInt model(db);
 	UI ui(model);
+	std::thread model_thread(std::ref(model));
 	ui();
     return 0;
 }

@@ -15,8 +15,8 @@ public:
 	bool exists(const std::string& name);
 	void ensure_ownership(const std::string& name);
 	void remove_ownership(const std::string& name);
-	void add_variable(const std::string& name, int value = 0);
-	void set(const std::string& name, int value);
+	void add_variable(const std::string& name, int64 value = 0);
+	void set(const std::string& name, int64 value);
 	int64 get(const std::string& name);
 	bool is_owner(const std::string& name);
 	Message_State* state();
@@ -39,7 +39,7 @@ public:
 	void create(const std::string& name);
 	void free(const std::string& name);
 	int64 get(const std::string& name);
-	void set(const std::string& name, int value);
+	void set(const std::string& name, int64 value);
 	void setCallback(const std::string& name, NetworkCallback& callback);
 
 	void addObserver(DBObserverPtr observer);

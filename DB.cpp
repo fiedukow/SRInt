@@ -35,12 +35,12 @@ void DB::free(const std::string& name) {
 
 int64 DB::get(const std::string& name) {
 	if (!state_.exists(name))
-		throw std::runtime_error("DB::set: Variable does not exist.");	
+		throw std::runtime_error("DB::get: Variable does not exist.");	
 	state_.ensure_ownership(name);
 	return state_.get(name);
 }
 
-void DB::set(const std::string& name, int value) {
+void DB::set(const std::string& name, int64 value) {
 	if (!state_.exists(name))
 		throw std::runtime_error("DB::set: Variable does not exist.");
 	state_.ensure_ownership(name);
@@ -117,7 +117,7 @@ void StateHelper::remove_ownership(const std::string& name) {
 	}
 }
 
-void StateHelper::add_variable(const std::string& name, int value) {
+void StateHelper::add_variable(const std::string& name, int64 value) {
 	Message_Variable* var = new Message_Variable;
 	var->set_name(name);
 	var->set_value(value);
@@ -125,7 +125,7 @@ void StateHelper::add_variable(const std::string& name, int value) {
 	ensure_ownership(name);
 }
 
-void StateHelper::set(const std::string& name, int value) {
+void StateHelper::set(const std::string& name, int64 value) {
 	Message_Variable* var = find_variable(name);
 	assert(var);
 	var->set_value(value);
