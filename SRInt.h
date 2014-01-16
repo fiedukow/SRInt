@@ -34,6 +34,7 @@ private:
 	bool ReceiveMessage();
 	void EngageSingleUserCommand();
 	void UpdateConnection();
+	bool NetworkTokenShouldBeInitialized();
 
 	DB& db_;
 	std::queue<UserCommand> commands_queue_;

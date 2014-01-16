@@ -12,7 +12,7 @@ UI::~UI() {
 }
 
 void UI::operator()() {
-	std::cout << "Witaj w super SRInt'cie" << std::endl;
+	std::cout << "Witaj w super SRInt'cie!" << std::endl;
 	std::cout << "Konfiguracja w pliku config.dat" << std::endl;
 	std::string command;
 	model_.addObserver(this);

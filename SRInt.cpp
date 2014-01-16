@@ -23,10 +23,10 @@ void SRInt::operator()() {
 		SendEntryRequest();
 
 	while (true) {
-		if (ReceiveMessage() || (cfg.is_master && db_.state()->nodes_size() == 1)) {
-			EngageSingleUserCommand();
-			SendState();
-		}
+		if (!ReceiveMessage() && !NetworkTokenShouldBeInitialized())
+			continue;
+		EngageSingleUserCommand();
+		SendState();
 	}
 }
 
@@ -127,4 +127,8 @@ void SRInt::UpdateConnection() {
 	client_.connect(ss.str().c_str());
 	last_connected_ip = next->ip();
 	last_connected_port = next->port();
+}
+
+bool SRInt::NetworkTokenShouldBeInitialized() {
+	return (cfg.is_master && db_.state()->nodes_size() == 1);
 }
