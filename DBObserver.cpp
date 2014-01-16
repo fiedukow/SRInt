@@ -13,7 +13,7 @@ void NetworkAutoObserver::LocalChangeNotify(const std::string& name, DB& db) {
 	// Nothign to be done here.
 }
 
-void NetworkAutoObserver::GlobalChangeNotify(const std::string& name, int old_value, int new_value, DB& db) {
+void NetworkAutoObserver::GlobalChangeNotify(const std::string& name, int64 old_value, int64 new_value, DB& db) {
 	if (nameFilter_ != name)
 		return;
 	callback_(name, db);

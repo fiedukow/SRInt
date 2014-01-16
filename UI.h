@@ -14,7 +14,7 @@ public:
 	/* Overriten from DBObserver */
 	virtual void CallDoneNotify(const std::string& call_message, bool status, DB& db);
 	virtual void LocalChangeNotify(const std::string& name, DB& db);
-	virtual void GlobalChangeNotify(const std::string& name, int old_value, int new_value, DB& db);
+	virtual void GlobalChangeNotify(const std::string& name, int64 old_value, int64 new_value, DB& db);
 
 private:
 	void parseAndRun(const std::string&);

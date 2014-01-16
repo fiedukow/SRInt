@@ -33,7 +33,7 @@ void UI::CallDoneNotify(const std::string& call_message, bool status, DB& db) {
 void UI::LocalChangeNotify(const std::string& name, DB& db) {
 }
 
-void UI::GlobalChangeNotify(const std::string& name, int old_value, int new_value, DB& db) {
+void UI::GlobalChangeNotify(const std::string& name, int64 old_value, int64 new_value, DB& db) {
 	std::cout << "\b\b\b" << "W sieci ktos zmienil zmienna \"" << name << "\" z wartosci " << old_value << " na wartosc " << new_value << std::endl;
 	showPrompt();
 }

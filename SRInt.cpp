@@ -95,6 +95,7 @@ bool SRInt::ReceiveMessage() {
 		case Message_MessageType_ENTRY_REQUEST: {
 			Message_NodeDescription* new_node = msg.mutable_state_content()->mutable_nodes()->ReleaseLast();
 			commands_queue_.push(std::bind(&DB::addNode, &db_, new_node));
+			std::cout << "Entry request!" << std::endl;
 			return false;
 		}
 		default:

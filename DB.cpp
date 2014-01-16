@@ -2,6 +2,7 @@
 #include "protobuf.pb.h"
 #include <sstream>
 #include <iostream>
+#include <algorithm>
 
 DB::DB(Message_State* baseState, const Message_NodeDescription* owner)
 	: state_(baseState, owner), owner_node_(owner) {
@@ -23,7 +24,7 @@ Message_State* DB::state() {
 }
 
 // Requested interface
-void DB::create(const std::string& name) {	
+void DB::create(const std::string& name) {
 	std::string done_message = std::string("Created ") + name;	
 	if (state_.exists(name)) {
 		state_.ensure_ownership(name);
@@ -131,7 +132,7 @@ void DB::notifyLocalChangeObservers(const std::string& name) {
 		observer->LocalChangeNotify(name, *this);
 }
 
-void DB::notifyGlobalChangeObservers(const std::string& name, int old_value, int new_value) {
+void DB::notifyGlobalChangeObservers(const std::string& name, int64 old_value, int64 new_value) {
 	for (DBObserver* observer : observers_)
 		observer->GlobalChangeNotify(name, old_value, new_value, *this);
 	for (DBObserverPtr observer : owned_observers_)
@@ -210,6 +211,7 @@ int64 StateHelper::get(const std::string& name) {
 
 void StateHelper::add_node(Message_NodeDescription* new_node) {
 	std::list<Message_NodeDescription*> nodes;
+	int max_node_id = -1;
 	while (state_->nodes_size() > 0) {
 		Message_NodeDescription* current = state_->mutable_nodes()->ReleaseLast();
 		if (current->ip() == owner_node_->ip() &&
@@ -217,7 +219,10 @@ void StateHelper::add_node(Message_NodeDescription* new_node) {
 			nodes.push_front(new_node);
 		}
 		nodes.push_front(current);
+		max_node_id = std::max(max_node_id, current->node_id());
 	}
+	new_node->set_node_id(max_node_id + 1);
+
 	assert(std::find(nodes.begin(), nodes.end(), new_node) != nodes.end());
 	for (Message_NodeDescription* node : nodes)
 		state_->mutable_nodes()->AddAllocated(node);

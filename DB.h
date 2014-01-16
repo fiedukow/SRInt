@@ -74,7 +74,7 @@ public:
 private:
 	void notifyCallDoneObservers(const std::string& command, bool status);
 	void notifyLocalChangeObservers(const std::string& name);
-	void notifyGlobalChangeObservers(const std::string& name, int old_value, int new_value);
+	void notifyGlobalChangeObservers(const std::string& name, int64 old_value, int64 new_value);
 
 	void diffStatesAndNotifyObserver(StateHelper& new_state);
 
