@@ -1,6 +1,7 @@
 #include "DB.h"
 #include "protobuf.pb.h"
 #include <sstream>
+#include <iostream>
 
 DB::DB(Message_State* baseState, const Message_NodeDescription* owner)
 	: state_(baseState, owner), owner_node_(owner) {
@@ -85,6 +86,13 @@ VariablesSnapshot DB::state_snapshot() {
 	return state_.state_snapshot();
 }
 
+void DB::addNode(Message_NodeDescription* node) {
+	state_.add_node(node);
+}
+
+const Message_NodeDescription* DB::nextNode() {
+	return state_.next_node();
+}
 
 void DB::addObserver(DBObserver* observer) {
 	observers_.push_back(observer);
@@ -198,6 +206,35 @@ int64 StateHelper::get(const std::string& name) {
 	Message_Variable* var = find_variable(name);
 	assert(var);
 	return var->value();
+}
+
+void StateHelper::add_node(Message_NodeDescription* new_node) {
+	std::list<Message_NodeDescription*> nodes;
+	while (state_->nodes_size() > 0) {
+		Message_NodeDescription* current = state_->mutable_nodes()->ReleaseLast();
+		if (current->ip() == owner_node_->ip() &&
+			current->port() == owner_node_->port()) {
+			nodes.push_front(new_node);
+		}
+		nodes.push_front(current);
+	}
+	assert(std::find(nodes.begin(), nodes.end(), new_node) != nodes.end());
+	for (Message_NodeDescription* node : nodes)
+		state_->mutable_nodes()->AddAllocated(node);
+}
+
+const Message_NodeDescription* StateHelper::next_node() {
+	assert(state_->nodes_size() > 0);
+
+	auto i = state_->nodes().begin();
+	for (; (i+1) != state_->nodes().end(); ++i) {
+		if (i->ip() == owner_node_->ip() &&
+			i->port() == owner_node_->port()) {
+			return &(*(i+1));
+		}
+	}
+	assert(i->ip() == owner_node_->ip() && i->port() == owner_node_->port());
+	return &(*state_->nodes().begin());
 }
 
 VariablesSnapshot StateHelper::state_snapshot() {

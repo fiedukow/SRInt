@@ -6,6 +6,7 @@
 #include "protobuf.pb.h"
 #include "DB.h"
 #include "zmq.hpp"
+#include "Config.h"
 
 typedef std::function<void ()> UserCommand;
 
@@ -29,8 +30,10 @@ public:
 
 private:
 	void SendState();
-	void ReceiveState();
+	void SendEntryRequest();
+	bool ReceiveMessage();
 	void EngageSingleUserCommand();
+	void UpdateConnection();
 
 	DB& db_;
 	std::queue<UserCommand> commands_queue_;
@@ -38,5 +41,10 @@ private:
 	zmq::context_t context_;
 	zmq::socket_t client_;
 	zmq::socket_t server_;	
+
+	std::string last_connected_ip;
+	int last_connected_port;
+
+	Config cfg;
 };
 
