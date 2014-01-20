@@ -91,6 +91,10 @@ void DB::addNode(Message_NodeDescription* node) {
 	state_.add_node(node);
 }
 
+void DB::removeFollower() {
+	state_.remove_follower();
+}
+
 const Message_NodeDescription* DB::nextNode() {
 	return state_.next_node();
 }
@@ -226,6 +230,10 @@ void StateHelper::add_node(Message_NodeDescription* new_node) {
 	assert(std::find(nodes.begin(), nodes.end(), new_node) != nodes.end());
 	for (Message_NodeDescription* node : nodes)
 		state_->mutable_nodes()->AddAllocated(node);
+}
+
+void StateHelper::remove_follower() {
+	// FIXME implement this
 }
 
 const Message_NodeDescription* StateHelper::next_node() {

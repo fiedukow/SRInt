@@ -33,8 +33,6 @@ int main () {
 	base_state->mutable_nodes()->Add()->CopyFrom(*owner_node);
 
 	DB db(base_state, owner_node);
-	db.create("dupa");
-	db.set("dupa", 72);
 
 	SRInt model(db);
 	UI ui(model);

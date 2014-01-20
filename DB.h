@@ -31,6 +31,7 @@ public:
 	void set(const std::string& name, int64 value);
 	int64 get(const std::string& name);
 	void add_node(Message_NodeDescription* new_node);
+	void remove_follower();
 
 	const Message_NodeDescription* next_node();
 
@@ -63,6 +64,7 @@ public:
 	void setCallback(const std::string& name, NetworkCallback& callback);
 	VariablesSnapshot state_snapshot();
 	void addNode(Message_NodeDescription* node);
+	void removeFollower();
 
 	const Message_NodeDescription* nextNode();
 

@@ -64,7 +64,8 @@ static std::string
 s_recv (zmq::socket_t & socket) {
 
     zmq::message_t message;
-    socket.recv(&message);
+	if (!socket.recv(&message))
+		throw std::runtime_error("zmq::sockect_t::recv failed in s_recv.");
 
     return std::string(static_cast<char*>(message.data()), message.size());
 }
