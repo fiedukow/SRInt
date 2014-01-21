@@ -25,17 +25,16 @@ void Monitor::operator()() {
 }
 
 void Monitor::on_event_disconnected(const zmq_event_t &event_, const char* addr_) {
-	std::cout << "DISCONNECT" << std::endl;
+	std::cout << "Disconnected" << std::endl;
 	events_.push(ZMQ_EVENT_DISCONNECTED);
 }
 
-void Monitor::on_event_connect_delayed(const zmq_event_t &event_, const char* addr_) {
-	std::cout << "UNABLE TO CONNECT" << std::endl;
-	events_.push(ZMQ_EVENT_CONNECT_DELAYED);
+void Monitor::on_event_connect_retried(const zmq_event_t &event_, const char* addr_) {
+	std::cout << "Retried" << std::endl;
+	events_.push(ZMQ_EVENT_CONNECT_RETRIED);
 }
 
 void Monitor::on_event_connected(const zmq_event_t &event_, const char* addr_) {
-	std::cout << "CONNECT" << std::endl;
 	std::queue<int> empty;
 	std::swap(events_, empty);
 }
@@ -46,6 +45,7 @@ SRInt::SRInt(DB& db)
 	ss << "tcp://" << cfg.ip_listen << ":" << cfg.port_listen;
 	server_.bind(ss.str().c_str());
 	server_.setsockopt(ZMQ_RCVTIMEO, &kReceiveTimeout, sizeof(kReceiveTimeout));
+	connected_ = cfg.is_master;
 }
 
 SRInt::~SRInt() {
@@ -61,7 +61,15 @@ void SRInt::operator()() {
 		ReceiveStatus status = ReceiveMessage();
 		switch (status) {
 			case RECEIVING_ERROR:
-				HandleMonitorEvents();
+				if (HandleMonitorEvents()) {
+					if (connected_) {
+						SendState();
+					} else {
+						std::cout << "Gine" << std::endl;
+						Sleep(5000);
+						exit(1); //TODO
+					}
+				}					
 				break;
 			case NO_TOKEN_RECEIVED:
 				if (!NetworkTokenShouldBeInitialized()) {
@@ -72,6 +80,7 @@ void SRInt::operator()() {
 			case TOKEN_RECEIVED:
 				EngageSingleUserCommand();
 				SendState();
+				break;
 			default: assert(false);
 		}
 	}
@@ -141,10 +150,12 @@ SRInt::ReceiveStatus SRInt::ReceiveMessage() {
 	} catch (std::exception e) {
 		return RECEIVING_ERROR;
 	}
+
 	Message msg;
 	msg.ParseFromString(received);
 	switch (msg.type()) {
 		case Message_MessageType_STATE:			
+			connected_ = true;
 			if (msg.state_content().state_id() < db_.state()->state_id())
 				return NO_TOKEN_RECEIVED;
 			db_.setState(msg.release_state_content());
@@ -193,17 +204,20 @@ void SRInt::UpdateConnection() {
 	last_connected_port = next->port();
 }
 
-void SRInt::HandleMonitorEvents() {
+bool SRInt::HandleMonitorEvents() {
+	bool handled = false;
 	while (monitor_events_.size() > 0) {		
 		switch (monitor_events_.front()) {
 			case ZMQ_EVENT_DISCONNECTED:
-			case ZMQ_EVENT_CONNECT_DELAYED:				
+			case ZMQ_EVENT_CONNECT_RETRIED:
 				commands_queue_.push(std::bind(&DB::removeFollower, &db_));
+				handled = true;
 				break;
 			default: assert(false);
 		}
 		monitor_events_.pop();
 	}
+	return handled;
 }
 
 bool SRInt::NetworkTokenShouldBeInitialized() {

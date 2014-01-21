@@ -17,7 +17,7 @@ public:
 	void operator()();
 
 	virtual void on_event_disconnected(const zmq_event_t &event_, const char* addr_);
-	virtual void on_event_connect_delayed(const zmq_event_t &event_, const char* addr_);
+	virtual void on_event_connect_retried(const zmq_event_t &event_, const char* addr_);
 	virtual void on_event_connected(const zmq_event_t &event_, const char* addr_);
 
 private:
@@ -51,7 +51,7 @@ private:
 	ReceiveStatus ReceiveMessage();	
 	void EngageSingleUserCommand();
 	void UpdateConnection();
-	void HandleMonitorEvents();
+	bool HandleMonitorEvents(); // true if handled something
 	bool NetworkTokenShouldBeInitialized();
 
 	DB& db_;
@@ -66,7 +66,8 @@ private:
 
 	// TODO Move this to another class
 	std::queue<int> monitor_events_; // FIXME thread save (non-blocking) queue 
-	Monitor monitor_;	
+	Monitor monitor_;
+	bool connected_;
 
 	Config cfg;
 };
