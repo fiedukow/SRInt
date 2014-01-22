@@ -59,6 +59,8 @@ Client::~Client() {
 }
 
 void Client::connect(const std::string& address) {
+	if (connected_ && address_ == address)
+		return;
 	disconnect();
 	address_ = address;
 	socket_ = new zmq::socket_t(context_, ZMQ_PUSH);
@@ -239,19 +241,15 @@ void SRInt::UpdateConnection() {
 	if (db_.state()->nodes_size() == 1) {
 		std::cout << "Going master." << std::endl;
 		cfg.is_master = true;
-		DisconnectClient();
+		client_.disconnect();
 		return;
 	}
 
 	const Message_NodeDescription* next = db_.nextNode();
-	if (last_connected_ip == next->ip() && last_connected_port == next->port())
-		return;
 
 	std::stringstream ss;
 	ss << "tcp://" << next->ip() << ":" << next->port();
 	client_.connect(ss.str().c_str());
-	last_connected_ip = next->ip();
-	last_connected_port = next->port();
 }
 
 bool once = true;
@@ -276,10 +274,4 @@ bool SRInt::HandleMonitorEvents() {
 
 bool SRInt::NetworkTokenShouldBeInitialized() {
 	return (cfg.is_master && db_.state()->nodes_size() == 1);
-}
-
-void SRInt::DisconnectClient() {
-	client_.disconnect();
-	last_connected_ip = "";
-	last_connected_port = 0;
 }

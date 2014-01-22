@@ -82,7 +82,6 @@ private:
 	void UpdateConnection();
 	bool HandleMonitorEvents(); // true if handled something
 	bool NetworkTokenShouldBeInitialized();
-	void DisconnectClient();
 
 	DB& db_;
 	std::queue<UserCommand> commands_queue_; // FIXME thread save (non-blocking) queue 
@@ -90,9 +89,6 @@ private:
 	zmq::context_t context_;	
 	zmq::socket_t server_;
 	Client client_;
-
-	std::string last_connected_ip;
-	int last_connected_port;
 
 	// TODO Move this to another class
 	std::queue<int> monitor_events_; // FIXME thread save (non-blocking) queue 	
