@@ -36,10 +36,8 @@ void Monitor::on_event_disconnected(const zmq_event_t &event_, const char* addr_
 
 void Monitor::on_event_connect_retried(const zmq_event_t &event_, const char* addr_) {	
 	if (retries_++ < kRetriesLimit) {
-		std::cout << "Retrying (" << retries_ << " of " << kRetriesLimit << ")..." << std::endl;
 		return;
 	}
-	std::cout << "Retry limit reached. Disconnecting." << std::endl;
 	events_.push(ZMQ_EVENT_CONNECT_RETRIED);
 }
 
@@ -117,7 +115,7 @@ void SRInt::operator()() {
 			case RECEIVING_ERROR:
 				if (HandleMonitorEvents()) {
 					if (!connected_) {
-						std::cout << "Umieram!" << std::endl;
+						std::cout << "Nie udalo podlaczyc sie do wezla matki." << std::endl;
 						Sleep(1000);
 						exit(1); //TODO
 						return;
@@ -220,7 +218,6 @@ SRInt::ReceiveStatus SRInt::ReceiveMessage() {
 		case Message_MessageType_ENTRY_REQUEST: {
 			Message_NodeDescription* new_node = msg.mutable_state_content()->mutable_nodes()->ReleaseLast();
 			commands_queue_.push(std::bind(&DB::addNode, &db_, new_node));
-			std::cout << "Entry request!" << std::endl;
 			return NO_TOKEN_RECEIVED;
 		}
 		default:
@@ -239,7 +236,6 @@ void SRInt::EngageSingleUserCommand() {
 
 void SRInt::UpdateConnection() {	
 	if (db_.state()->nodes_size() == 1) {
-		std::cout << "Going master." << std::endl;
 		cfg.is_master = true;
 		client_.disconnect();
 		return;
