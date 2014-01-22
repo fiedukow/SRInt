@@ -451,7 +451,7 @@ namespace zmq
     class monitor_t
     {
     public:
-        monitor_t() : socketPtr(NULL) {}
+		monitor_t() : socketPtr(NULL), abort_(false) {}
         virtual ~monitor_t() {}
 
         void monitor(socket_t &socket, const char *addr_, int events = ZMQ_EVENT_ALL)
@@ -469,7 +469,7 @@ namespace zmq
             
             on_monitor_started();
             
-            while (true) {
+			while (!abort_) {
                 zmq_msg_t eventMsg;
                 zmq_msg_init (&eventMsg);
                 rc = zmq_recvmsg (s, &eventMsg, 0);
@@ -544,6 +544,7 @@ namespace zmq
         {
             if (socketPtr)
                 zmq_socket_monitor(socketPtr, NULL, 0);
+			abort_ = true;
         }
 #endif
         virtual void on_monitor_started() {}
@@ -558,8 +559,10 @@ namespace zmq
         virtual void on_event_close_failed(const zmq_event_t &event_, const char* addr_) { (void)event_; (void)addr_; }
         virtual void on_event_disconnected(const zmq_event_t &event_, const char* addr_) { (void)event_; (void)addr_; }
         virtual void on_event_unknown(const zmq_event_t &event_, const char* addr_) { (void)event_; (void)addr_; }
+
     private:
         void* socketPtr;
+		bool abort_;
     };
 }
 

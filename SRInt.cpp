@@ -14,25 +14,24 @@ const int kTokenNotReceivedTimeoutMs = 5000;
 const int kImmidiateSendOption = 1;
 const int kRetriesLimit = 20;
 
+int Monitor::next_monitor_index = 0;
+
 Monitor::Monitor(zmq::socket_t& socket, std::queue<int>& events)
-	: socket_(socket), events_(events), connection_counter_(0), current_connected_(false), retries_(0) {
+	: socket_(socket), events_(events), retries_(0) {
 }
 
 Monitor::~Monitor() {
 }
 
-static int Monitor::no = 0;
-
 void Monitor::operator()() {
 	std::stringstream ss;
-	ss << "inproc://monitor_" << no++ << ".req";
+	ss << "inproc://monitor_" << next_monitor_index++ << ".req";
 	std::string string = ss.str();
 	monitor(socket_, string.c_str(), ZMQ_EVENT_ALL);
 }
 
 void Monitor::on_event_disconnected(const zmq_event_t &event_, const char* addr_) {
 	events_.push(ZMQ_EVENT_DISCONNECTED);
-	connection_counter_--;
 }
 
 void Monitor::on_event_connect_retried(const zmq_event_t &event_, const char* addr_) {
@@ -41,14 +40,9 @@ void Monitor::on_event_connect_retried(const zmq_event_t &event_, const char* ad
 	events_.push(ZMQ_EVENT_CONNECT_RETRIED);
 }
 
-bool Monitor::isCurrentConnected() {
-	return connection_counter_ > 0;
-}
-
 void Monitor::on_event_connected(const zmq_event_t &event_, const char* addr_) {
 	std::queue<int> empty;
 	std::swap(events_, empty);
-	connection_counter_++;
 	retries_ = 0;
 }
 
@@ -77,9 +71,6 @@ void Client::disconnect() {
 
 	connected_ = false;
 	monitor_->abort();
-	while (!monitor_->aborded) {
-		char* nothing;
-	}
 	monitor_thread_->join();
 	delete monitor_thread_;
 	delete monitor_;
