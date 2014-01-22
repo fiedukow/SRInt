@@ -88,18 +88,22 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Client.cpp" />
     <ClCompile Include="Config.cpp" />
     <ClCompile Include="DB.cpp" />
     <ClCompile Include="DBObserver.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Monitor.cpp" />
     <ClCompile Include="protobuf.pb.cc" />
     <ClCompile Include="SRInt.cpp" />
     <ClCompile Include="UI.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Client.h" />
     <ClInclude Include="Config.h" />
     <ClInclude Include="DB.h" />
     <ClInclude Include="DBObserver.h" />
+    <ClInclude Include="Monitor.h" />
     <ClInclude Include="protobuf.pb.h" />
     <ClInclude Include="SRInt.h" />
     <ClInclude Include="UI.h" />

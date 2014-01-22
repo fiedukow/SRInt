@@ -12,84 +12,6 @@
 const int kReceiveTimeout = 100;
 const int kTokenNotReceivedTimeoutMs = 5000;
 const int kImmidiateSendOption = 1;
-const int kRetriesLimit = 20;
-
-int Monitor::next_monitor_index = 0;
-
-Monitor::Monitor(zmq::socket_t& socket, std::queue<int>& events)
-	: socket_(socket), events_(events), retries_(0) {
-}
-
-Monitor::~Monitor() {
-}
-
-void Monitor::operator()() {
-	std::stringstream ss;
-	ss << "inproc://monitor_" << next_monitor_index++ << ".req";
-	std::string string = ss.str();
-	monitor(socket_, string.c_str(), ZMQ_EVENT_ALL);
-}
-
-void Monitor::on_event_disconnected(const zmq_event_t &event_, const char* addr_) {
-	events_.push(ZMQ_EVENT_DISCONNECTED);
-}
-
-void Monitor::on_event_connect_retried(const zmq_event_t &event_, const char* addr_) {	
-	if (retries_++ < kRetriesLimit) {
-		return;
-	}
-	events_.push(ZMQ_EVENT_CONNECT_RETRIED);
-}
-
-void Monitor::on_event_connected(const zmq_event_t &event_, const char* addr_) {
-	std::queue<int> empty;
-	std::swap(events_, empty);
-	retries_ = 0;
-}
-
-Client::Client(std::queue<int>& monitor_events, zmq::context_t& context)
-	: monitor_events_(monitor_events), context_(context), socket_(NULL) {
-}
-
-Client::~Client() {
-	if (connected_)
-		disconnect();
-}
-
-void Client::connect(const std::string& address) {
-	if (connected_ && address_ == address)
-		return;
-	disconnect();
-	address_ = address;
-	socket_ = new zmq::socket_t(context_, ZMQ_PUSH);
-	monitor_ = new Monitor(*socket_, monitor_events_);
-	monitor_thread_ = new std::thread(std::ref(*monitor_));
-	socket_->connect(address_.c_str());
-	connected_ = true;
-}
-
-void Client::disconnect() {
-	if (!connected_)
-		return;
-
-	connected_ = false;
-	monitor_->abort();
-	monitor_thread_->join();
-	delete monitor_thread_;
-	delete monitor_;
-	delete socket_;
-	address_ = "";
-	socket_ = NULL;
-}
-
-zmq::socket_t& Client::socket() {
-	assert(hasSocket());
-	return *socket_;
-}
-
-bool Client::hasSocket() {
-	return (socket_ != NULL);
-}
 
 SRInt::SRInt(DB& db) 
 	: db_(db), context_(1), client_(monitor_events_, context_), server_(context_, ZMQ_PULL) {
@@ -105,38 +27,11 @@ SRInt::~SRInt() {
 
 void SRInt::operator()() {
 	try {
-	UserCommand command;
-	if (!cfg.is_master)
-		SendEntryRequest();
+		if (!cfg.is_master)
+			SendEntryRequest();
 
-	while (true) {
-		ReceiveStatus status = ReceiveMessage();
-		switch (status) {
-			case RECEIVING_ERROR:
-				if (HandleMonitorEvents()) {
-					if (!connected_) {
-						std::cout << "Nie udalo podlaczyc sie do wezla matki." << std::endl;
-						Sleep(1000);
-						exit(1); //TODO
-						return;
-					}
-					EngageSingleUserCommand();
-					SendState();
-				}				
-				break;
-			case NO_TOKEN_RECEIVED:
-				if (!NetworkTokenShouldBeInitialized()) {
-					HandleMonitorEvents();
-					break;
-				}
-			//fallthrough
-			case TOKEN_RECEIVED:
-				EngageSingleUserCommand();
-				SendState();
-				break;
-			default: assert(false);
-		}
-	}
+		while (true)
+			HandleReceivedMessageByStatus(ReceiveMessage());
 	} catch (zmq::error_t& e) {
 		std::cout << "Unhandled error_t: " << e.what() << std::endl;
 	}
@@ -270,4 +165,32 @@ bool SRInt::HandleMonitorEvents() {
 
 bool SRInt::NetworkTokenShouldBeInitialized() {
 	return (cfg.is_master && db_.state()->nodes_size() == 1);
+}
+
+void SRInt::HandleReceivedMessageByStatus(ReceiveStatus status) {
+	switch (status) {
+	case RECEIVING_ERROR:
+		if (HandleMonitorEvents()) {
+			if (!connected_) {
+				std::cout << "Nie udalo podlaczyc sie do wezla matki." << std::endl;
+				Sleep(1000);
+				exit(1); //TODO
+				return;
+			}
+			EngageSingleUserCommand();
+			SendState();
+		}
+		break;
+	case NO_TOKEN_RECEIVED:
+		if (!NetworkTokenShouldBeInitialized()) {
+			HandleMonitorEvents();
+			break;
+		}
+		//fallthrough
+	case TOKEN_RECEIVED:
+		EngageSingleUserCommand();
+		SendState();
+		break;
+	default: assert(false);
+	}
 }
