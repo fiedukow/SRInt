@@ -23,7 +23,7 @@
 int main () {
 	Config cfg;
 	Message_State* base_state = new Message_State;	
-	base_state->set_state_id(15);
+	base_state->set_state_id(1);
 
 	Message_NodeDescription* owner_node = new Message_NodeDescription;	
 	owner_node->set_ip(cfg.ip_listen);

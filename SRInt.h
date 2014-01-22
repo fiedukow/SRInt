@@ -32,7 +32,7 @@ public:
 	void removeObserver(DBObserver* observer);
 
 private:
-	enum ReceiveStatus { TOKEN_RECEIVED, NO_TOKEN_RECEIVED, RECEIVING_ERROR };
+	enum ReceiveStatus { TOKEN_RECEIVED, ACK_RECEIVED, UPDATE_RECEIVED, NO_TOKEN_RECEIVED, RECEIVING_ERROR };
 
 	void SendState();
 	void SendEntryRequest();
@@ -49,10 +49,11 @@ private:
 	zmq::context_t context_;	
 	zmq::socket_t server_;
 	Client client_;
-
+	
 	// TODO Move this to another class
 	std::queue<int> monitor_events_; // FIXME thread save (non-blocking) queue 	
 	bool connected_;
+	int last_self_change_id_;
 
 	Config cfg;
 };

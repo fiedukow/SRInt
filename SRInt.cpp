@@ -14,7 +14,7 @@ const int kTokenNotReceivedTimeoutMs = 5000;
 const int kImmidiateSendOption = 1;
 
 SRInt::SRInt(DB& db) 
-	: db_(db), context_(1), client_(monitor_events_, context_), server_(context_, ZMQ_PULL) {
+	: db_(db), context_(1), client_(monitor_events_, context_), server_(context_, ZMQ_PULL), last_self_change_id_(-1) {
 	std::stringstream ss;
 	ss << "tcp://" << cfg.ip_listen << ":" << cfg.port_listen;
 	server_.bind(ss.str().c_str());
@@ -32,6 +32,7 @@ void SRInt::operator()() {
 
 		while (true)
 			HandleReceivedMessageByStatus(ReceiveMessage());
+
 	} catch (zmq::error_t& e) {
 		std::cout << "Unhandled error_t: " << e.what() << std::endl;
 	}
@@ -106,10 +107,20 @@ SRInt::ReceiveStatus SRInt::ReceiveMessage() {
 	switch (msg.type()) {
 		case Message_MessageType_STATE:			
 			connected_ = true;
-			if (msg.state_content().state_id() < db_.state()->state_id()) // FIXME <=
+			if (msg.state_content().state_id() < db_.state()->state_id()) {
 				return NO_TOKEN_RECEIVED;
-			db_.setState(msg.release_state_content());
-			return TOKEN_RECEIVED;
+			} else {
+				int64 old_state_id = db_.state()->state_id();
+				db_.setState(msg.release_state_content());
+				if (db_.state()->state_id() > old_state_id)
+					return UPDATE_RECEIVED;
+				if (db_.state()->state_id() == last_self_change_id_)
+					return ACK_RECEIVED;
+
+				last_self_change_id_ = db_.increaseStateId();
+				return TOKEN_RECEIVED;
+			}
+			assert(false);
 		case Message_MessageType_ENTRY_REQUEST: {
 			Message_NodeDescription* new_node = msg.mutable_state_content()->mutable_nodes()->ReleaseLast();
 			commands_queue_.push(std::bind(&DB::addNode, &db_, new_node));
@@ -177,18 +188,20 @@ void SRInt::HandleReceivedMessageByStatus(ReceiveStatus status) {
 				exit(1); //TODO
 				return;
 			}
+			last_self_change_id_ = db_.increaseStateId();
 			EngageSingleUserCommand();
 			SendState();
 		}
 		break;
 	case NO_TOKEN_RECEIVED:
-		if (!NetworkTokenShouldBeInitialized()) {
-			HandleMonitorEvents();
+		if (!NetworkTokenShouldBeInitialized())
 			break;
-		}
 		//fallthrough
 	case TOKEN_RECEIVED:
 		EngageSingleUserCommand();
+		//fallthrough
+	case ACK_RECEIVED:
+	case UPDATE_RECEIVED:
 		SendState();
 		break;
 	default: assert(false);

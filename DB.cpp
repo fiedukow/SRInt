@@ -95,6 +95,11 @@ void DB::removeFollower() {
 	state_.remove_follower();
 }
 
+int DB::increaseStateId() {
+	state()->set_state_id(state()->state_id() + 1);
+	return state()->state_id();
+}
+
 const Message_NodeDescription* DB::nextNode() {
 	return state_.next_node();
 }

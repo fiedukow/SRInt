@@ -65,6 +65,7 @@ public:
 	VariablesSnapshot state_snapshot();
 	void addNode(Message_NodeDescription* node);
 	void removeFollower();
+	int increaseStateId(); //returns new id
 
 	const Message_NodeDescription* nextNode();
 
