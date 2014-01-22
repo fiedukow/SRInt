@@ -12,35 +12,89 @@
 const int kReceiveTimeout = 100;
 const int kTokenNotReceivedTimeoutMs = 5000;
 const int kImmidiateSendOption = 1;
+const int kRetriesLimit = 20;
 
 Monitor::Monitor(zmq::socket_t& socket, std::queue<int>& events)
-	: socket_(socket), events_(events) {
+	: socket_(socket), events_(events), connection_counter_(0), current_connected_(false), retries_(0) {
 }
 
 Monitor::~Monitor() {
 }
 
+static int Monitor::no = 0;
+
 void Monitor::operator()() {
-	monitor(socket_, "inproc://monitor.req", ZMQ_EVENT_ALL);
+	std::stringstream ss;
+	ss << "inproc://monitor_" << no++ << ".req";
+	std::string string = ss.str();
+	monitor(socket_, string.c_str(), ZMQ_EVENT_ALL);
 }
 
 void Monitor::on_event_disconnected(const zmq_event_t &event_, const char* addr_) {
-	std::cout << "Disconnected" << std::endl;
 	events_.push(ZMQ_EVENT_DISCONNECTED);
+	connection_counter_--;
 }
 
 void Monitor::on_event_connect_retried(const zmq_event_t &event_, const char* addr_) {
-	std::cout << "Retried" << std::endl;
+	if (retries_++ < kRetriesLimit)
+		return;
 	events_.push(ZMQ_EVENT_CONNECT_RETRIED);
+}
+
+bool Monitor::isCurrentConnected() {
+	return connection_counter_ > 0;
 }
 
 void Monitor::on_event_connected(const zmq_event_t &event_, const char* addr_) {
 	std::queue<int> empty;
 	std::swap(events_, empty);
+	connection_counter_++;
+	retries_ = 0;
+}
+
+Client::Client(std::queue<int>& monitor_events, zmq::context_t& context)
+	: monitor_events_(monitor_events), context_(context), socket_(NULL) {
+}
+
+Client::~Client() {
+	if (connected_)
+		disconnect();
+}
+
+void Client::connect(const std::string& address) {
+	assert(!connected_);
+	address_ = address;
+	socket_ = new zmq::socket_t(context_, ZMQ_PUSH);
+	monitor_ = new Monitor(*socket_, monitor_events_);
+	monitor_thread_ = new std::thread(std::ref(*monitor_));
+	socket_->connect(address_.c_str());
+	connected_ = true;
+}
+
+void Client::disconnect() {
+	if (!connected_)
+		return;
+
+	connected_ = false;
+	monitor_->abort();
+	while (!monitor_->aborded) {
+		char* nothing;
+	}
+	monitor_thread_->join();
+	delete monitor_thread_;
+	delete monitor_;
+	delete socket_;
+	address_ = "";
+	socket_ = NULL;
+}
+
+zmq::socket_t& Client::socket() {
+	assert(socket_);
+	return *socket_;
 }
 
 SRInt::SRInt(DB& db) 
-	: db_(db), context_(1), client_(context_, ZMQ_PUSH), server_(context_, ZMQ_PULL), monitor_(client_, monitor_events_) {
+	: db_(db), context_(1), client_(monitor_events_, context_), server_(context_, ZMQ_PULL) {
 	std::stringstream ss;
 	ss << "tcp://" << cfg.ip_listen << ":" << cfg.port_listen;
 	server_.bind(ss.str().c_str());
@@ -52,7 +106,6 @@ SRInt::~SRInt() {
 }
 
 void SRInt::operator()() {
-	std::thread client_monitor_thread_(std::ref(monitor_));
 	UserCommand command;
 	if (!cfg.is_master)
 		SendEntryRequest();
@@ -62,14 +115,15 @@ void SRInt::operator()() {
 		switch (status) {
 			case RECEIVING_ERROR:
 				if (HandleMonitorEvents()) {
-					if (connected_) {
-						SendState();
-					} else {
-						std::cout << "Gine" << std::endl;
-						Sleep(5000);
+					if (!connected_) {
+						std::cout << "Umieram!" << std::endl;
+						Sleep(1000);
 						exit(1); //TODO
+						return;
 					}
-				}					
+					EngageSingleUserCommand();
+					SendState();
+				}				
 				break;
 			case NO_TOKEN_RECEIVED:
 				if (!NetworkTokenShouldBeInitialized()) {
@@ -84,9 +138,6 @@ void SRInt::operator()() {
 			default: assert(false);
 		}
 	}
-
-	monitor_.abort();
-	client_monitor_thread_.join();
 }
 
 void SRInt::dhCreate(const std::string& name) {
@@ -123,11 +174,13 @@ void SRInt::removeObserver(DBObserver* observer) {
 
 void SRInt::SendState() {
 	UpdateConnection();
+	if (db_.state()->nodes_size() == 1)
+		return;
 
 	Message msg;
 	msg.set_type(Message_MessageType_STATE);
 	msg.set_allocated_state_content(db_.state());
-	s_send(client_, msg.SerializeAsString());
+	s_send(client_.socket(), msg.SerializeAsString());
 	msg.release_state_content(); // we are not owners of this state
 }
 
@@ -139,8 +192,10 @@ void SRInt::SendEntryRequest() {
 	Message msg;
 	msg.set_type(Message_MessageType_ENTRY_REQUEST);
 	msg.set_allocated_state_content(db_.state());
-	s_send(client_, msg.SerializeAsString());
+	s_send(client_.socket(), msg.SerializeAsString());
 	msg.release_state_content();
+
+	client_.disconnect();
 }
 
 SRInt::ReceiveStatus SRInt::ReceiveMessage() {
@@ -156,7 +211,7 @@ SRInt::ReceiveStatus SRInt::ReceiveMessage() {
 	switch (msg.type()) {
 		case Message_MessageType_STATE:			
 			connected_ = true;
-			if (msg.state_content().state_id() < db_.state()->state_id())
+			if (msg.state_content().state_id() < db_.state()->state_id()) // FIXME <=
 				return NO_TOKEN_RECEIVED;
 			db_.setState(msg.release_state_content());
 			return TOKEN_RECEIVED;
@@ -174,16 +229,17 @@ SRInt::ReceiveStatus SRInt::ReceiveMessage() {
 }
 
 void SRInt::EngageSingleUserCommand() {
-	if (commands_queue_.empty())
-		return;
-	commands_queue_.front()();
-	commands_queue_.pop();
+	while (!commands_queue_.empty()) {
+		commands_queue_.front()();
+		commands_queue_.pop();
+	}
 }
 
 void SRInt::UpdateConnection() {	
 	if (db_.state()->nodes_size() == 1) {
 		std::cout << "Going master." << std::endl;
 		cfg.is_master = true;
+		DisconnectClient();
 		return;
 	}
 
@@ -191,11 +247,7 @@ void SRInt::UpdateConnection() {
 	if (last_connected_ip == next->ip() && last_connected_port == next->port())
 		return;
 
-	if (last_connected_ip != "") {
-		std::stringstream ss;
-		ss << "tcp://" << last_connected_ip << ":" << last_connected_port;
-		client_.disconnect(ss.str().c_str());
-	}
+    DisconnectClient();
 
 	std::stringstream ss;
 	ss << "tcp://" << next->ip() << ":" << next->port();
@@ -204,12 +256,16 @@ void SRInt::UpdateConnection() {
 	last_connected_port = next->port();
 }
 
+bool once = true;
+
 bool SRInt::HandleMonitorEvents() {
 	bool handled = false;
 	while (monitor_events_.size() > 0) {		
 		switch (monitor_events_.front()) {
-			case ZMQ_EVENT_DISCONNECTED:
 			case ZMQ_EVENT_CONNECT_RETRIED:
+				handled = true;
+				break;
+			case ZMQ_EVENT_DISCONNECTED:			
 				commands_queue_.push(std::bind(&DB::removeFollower, &db_));
 				handled = true;
 				break;
@@ -222,4 +278,8 @@ bool SRInt::HandleMonitorEvents() {
 
 bool SRInt::NetworkTokenShouldBeInitialized() {
 	return (cfg.is_master && db_.state()->nodes_size() == 1);
+}
+
+void SRInt::DisconnectClient() {
+	client_.disconnect();
 }

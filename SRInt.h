@@ -7,6 +7,8 @@
 #include "DB.h"
 #include "zmq.hpp"
 #include "Config.h"
+#include <map>
+#include <thread>
 
 typedef std::function<void ()> UserCommand;
 
@@ -20,9 +22,38 @@ public:
 	virtual void on_event_connect_retried(const zmq_event_t &event_, const char* addr_);
 	virtual void on_event_connected(const zmq_event_t &event_, const char* addr_);
 
+	bool isCurrentConnected();
+
 private:
 	zmq::socket_t& socket_;
 	std::queue<int>& events_;
+
+	bool current_connected_;
+	int connection_counter_;
+	int retries_;
+	std::string last_connected_addr_; // zmq ftw!!!!!
+	static int Monitor::no = 0;
+};
+
+class Client {	
+public:
+	Client(std::queue<int>& monitor_events, zmq::context_t& context);
+	~Client();
+
+	void connect(const std::string& address);
+	void disconnect();
+
+	zmq::socket_t& socket();
+
+private:
+	std::string address_;
+	std::queue<int>& monitor_events_;
+	zmq::context_t& context_;
+	bool connected_;
+
+	std::thread* monitor_thread_;
+	zmq::socket_t* socket_;
+	Monitor* monitor_;
 };
 
 class SRInt {
@@ -53,20 +84,20 @@ private:
 	void UpdateConnection();
 	bool HandleMonitorEvents(); // true if handled something
 	bool NetworkTokenShouldBeInitialized();
+	void DisconnectClient();
 
 	DB& db_;
 	std::queue<UserCommand> commands_queue_; // FIXME thread save (non-blocking) queue 
 
-	zmq::context_t context_;
-	zmq::socket_t client_;
-	zmq::socket_t server_;	
+	zmq::context_t context_;	
+	zmq::socket_t server_;
+	Client client_;
 
 	std::string last_connected_ip;
 	int last_connected_port;
 
 	// TODO Move this to another class
-	std::queue<int> monitor_events_; // FIXME thread save (non-blocking) queue 
-	Monitor monitor_;
+	std::queue<int> monitor_events_; // FIXME thread save (non-blocking) queue 	
 	bool connected_;
 
 	Config cfg;

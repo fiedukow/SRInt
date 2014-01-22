@@ -233,7 +233,32 @@ void StateHelper::add_node(Message_NodeDescription* new_node) {
 }
 
 void StateHelper::remove_follower() {
-	// FIXME implement this
+	assert(state_->nodes_size() > 1);
+	std::list<Message_NodeDescription*> new_nodes;
+	bool take_first = false;
+
+	while (state_->nodes_size() > 0) {
+		Message_NodeDescription* current = state_->mutable_nodes()->ReleaseLast();
+		if (current->ip() == owner_node_->ip() &&
+			current->port() == owner_node_->port()) {
+			assert(!take_first);
+			if (new_nodes.size() > 0)
+				new_nodes.pop_front();
+			else
+				take_first = true;		}
+		new_nodes.push_front(current);
+	}
+	if (take_first)
+		new_nodes.pop_front();
+
+	assert(std::find_if(new_nodes.begin(),
+						new_nodes.end(),
+						[this](const Message_NodeDescription* desc) {
+							return desc->ip() == owner_node_->ip() &&
+								   desc->port() == owner_node_->port();
+						} ) != new_nodes.end());
+	for (Message_NodeDescription* node : new_nodes)
+		state_->mutable_nodes()->AddAllocated(node);
 }
 
 const Message_NodeDescription* StateHelper::next_node() {
