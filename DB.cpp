@@ -95,8 +95,8 @@ void DB::removeFollower() {
 	state_.remove_follower();
 }
 
-int DB::increaseStateId() {
-	state()->set_state_id(state()->state_id() + 1);
+int64 DB::increaseStateId(int increase_by) {
+	state()->set_state_id(state()->state_id() + increase_by);
 	return state()->state_id();
 }
 

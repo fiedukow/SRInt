@@ -53,7 +53,7 @@ private:
 	// TODO Move this to another class
 	std::queue<int> monitor_events_; // FIXME thread save (non-blocking) queue 	
 	bool was_in_network_;
-	int last_self_change_id_;
+	int64 last_self_change_id_;
 
 	Config cfg;
 };

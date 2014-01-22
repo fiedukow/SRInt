@@ -8,6 +8,7 @@
 #include "protobuf.pb.h"
 
 #include <thread>
+#include <chrono>
 
 const int kReceiveTimeout = 100;
 const int kTokenNotReceivedTimeoutMs = 5000;
@@ -188,7 +189,7 @@ void SRInt::HandleReceivedMessageByStatus(ReceiveStatus status) {
 				exit(1); //TODO
 				return;
 			}
-			last_self_change_id_ = db_.increaseStateId();
+			last_self_change_id_ = db_.increaseStateId(2);
 			EngageSingleUserCommand();
 			SendState();
 		}
@@ -198,6 +199,9 @@ void SRInt::HandleReceivedMessageByStatus(ReceiveStatus status) {
 			break;
 		//fallthrough
 	case TOKEN_RECEIVED:
+		std::cout << "Teraz mam token" << std::endl;
+		std::this_thread::sleep_for(std::chrono::seconds(3));
+		std::cout << "Juz nie " << std::endl;
 		EngageSingleUserCommand();
 		//fallthrough
 	case ACK_RECEIVED:
