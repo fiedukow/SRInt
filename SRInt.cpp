@@ -34,9 +34,12 @@ void Monitor::on_event_disconnected(const zmq_event_t &event_, const char* addr_
 	events_.push(ZMQ_EVENT_DISCONNECTED);
 }
 
-void Monitor::on_event_connect_retried(const zmq_event_t &event_, const char* addr_) {
-	if (retries_++ < kRetriesLimit)
+void Monitor::on_event_connect_retried(const zmq_event_t &event_, const char* addr_) {	
+	if (retries_++ < kRetriesLimit) {
+		std::cout << "Retrying (" << retries_ << " of " << kRetriesLimit << ")..." << std::endl;
 		return;
+	}
+	std::cout << "Retry limit reached. Disconnecting." << std::endl;
 	events_.push(ZMQ_EVENT_CONNECT_RETRIED);
 }
 
@@ -56,7 +59,7 @@ Client::~Client() {
 }
 
 void Client::connect(const std::string& address) {
-	assert(!connected_);
+	disconnect();
 	address_ = address;
 	socket_ = new zmq::socket_t(context_, ZMQ_PUSH);
 	monitor_ = new Monitor(*socket_, monitor_events_);
@@ -80,8 +83,12 @@ void Client::disconnect() {
 }
 
 zmq::socket_t& Client::socket() {
-	assert(socket_);
+	assert(hasSocket());
 	return *socket_;
+}
+
+bool Client::hasSocket() {
+	return (socket_ != NULL);
 }
 
 SRInt::SRInt(DB& db) 
@@ -97,6 +104,7 @@ SRInt::~SRInt() {
 }
 
 void SRInt::operator()() {
+	try {
 	UserCommand command;
 	if (!cfg.is_master)
 		SendEntryRequest();
@@ -128,6 +136,9 @@ void SRInt::operator()() {
 				break;
 			default: assert(false);
 		}
+	}
+	} catch (zmq::error_t& e) {
+		std::cout << "Unhandled error_t: " << e.what() << std::endl;
 	}
 }
 
@@ -185,8 +196,6 @@ void SRInt::SendEntryRequest() {
 	msg.set_allocated_state_content(db_.state());
 	s_send(client_.socket(), msg.SerializeAsString());
 	msg.release_state_content();
-
-	client_.disconnect();
 }
 
 SRInt::ReceiveStatus SRInt::ReceiveMessage() {
@@ -238,8 +247,6 @@ void SRInt::UpdateConnection() {
 	if (last_connected_ip == next->ip() && last_connected_port == next->port())
 		return;
 
-    DisconnectClient();
-
 	std::stringstream ss;
 	ss << "tcp://" << next->ip() << ":" << next->port();
 	client_.connect(ss.str().c_str());
@@ -273,4 +280,6 @@ bool SRInt::NetworkTokenShouldBeInitialized() {
 
 void SRInt::DisconnectClient() {
 	client_.disconnect();
+	last_connected_ip = "";
+	last_connected_port = 0;
 }

@@ -41,6 +41,7 @@ public:
 	void disconnect();
 
 	zmq::socket_t& socket();
+	bool hasSocket();
 
 private:
 	std::string address_;
