@@ -19,7 +19,7 @@ SRInt::SRInt(DB& db)
 	ss << "tcp://" << cfg.ip_listen << ":" << cfg.port_listen;
 	server_.bind(ss.str().c_str());
 	server_.setsockopt(ZMQ_RCVTIMEO, &kReceiveTimeout, sizeof(kReceiveTimeout));
-	connected_ = cfg.is_master;
+	was_in_network_ = cfg.is_master;
 }
 
 SRInt::~SRInt() {
@@ -106,7 +106,7 @@ SRInt::ReceiveStatus SRInt::ReceiveMessage() {
 	msg.ParseFromString(received);
 	switch (msg.type()) {
 		case Message_MessageType_STATE:			
-			connected_ = true;
+			was_in_network_ = true;
 			if (msg.state_content().state_id() < db_.state()->state_id()) {
 				return NO_TOKEN_RECEIVED;
 			} else {
@@ -182,7 +182,7 @@ void SRInt::HandleReceivedMessageByStatus(ReceiveStatus status) {
 	switch (status) {
 	case RECEIVING_ERROR:
 		if (HandleMonitorEvents()) {
-			if (!connected_) {
+			if (!was_in_network_) {
 				std::cout << "Nie udalo podlaczyc sie do wezla matki." << std::endl;
 				Sleep(1000);
 				exit(1); //TODO
