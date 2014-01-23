@@ -1,7 +1,7 @@
 #include "Monitor.h"
 #include <sstream>
 
-const int kRetriesLimit = 20;
+const int kRetriesLimit = 5;
 
 int Monitor::next_monitor_index = 0;
 

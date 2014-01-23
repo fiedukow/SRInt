@@ -22,7 +22,7 @@
 
 int main () {
 	Config cfg;
-	Message_State* base_state = new Message_State;	
+	Message_State* base_state = new Message_State;
 	base_state->set_state_id(1);
 
 	Message_NodeDescription* owner_node = new Message_NodeDescription;	

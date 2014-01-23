@@ -49,7 +49,7 @@ private:
 	zmq::context_t context_;	
 	zmq::socket_t server_;
 	Client client_;
-	
+
 	// TODO Move this to another class
 	std::queue<int> monitor_events_; // FIXME thread save (non-blocking) queue 	
 	bool was_in_network_;
@@ -57,4 +57,3 @@ private:
 
 	Config cfg;
 };
-

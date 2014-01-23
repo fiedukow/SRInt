@@ -114,10 +114,10 @@ SRInt::ReceiveStatus SRInt::ReceiveMessage() {
 				int64 old_state_id = db_.state()->state_id();
 				db_.setState(msg.release_state_content());
 				if (db_.state()->state_id() > old_state_id)
-					return UPDATE_RECEIVED;
+					return UPDATE_RECEIVED;				
 				if (db_.state()->state_id() == last_self_change_id_)
 					return ACK_RECEIVED;
-
+				
 				last_self_change_id_ = db_.increaseStateId();
 				return TOKEN_RECEIVED;
 			}
@@ -162,8 +162,6 @@ bool SRInt::HandleMonitorEvents() {
 	while (monitor_events_.size() > 0) {		
 		switch (monitor_events_.front()) {
 			case ZMQ_EVENT_CONNECT_RETRIED:
-				handled = true;
-				break;
 			case ZMQ_EVENT_DISCONNECTED:			
 				commands_queue_.push(std::bind(&DB::removeFollower, &db_));
 				handled = true;
@@ -199,9 +197,6 @@ void SRInt::HandleReceivedMessageByStatus(ReceiveStatus status) {
 			break;
 		//fallthrough
 	case TOKEN_RECEIVED:
-		std::cout << "Teraz mam token" << std::endl;
-		std::this_thread::sleep_for(std::chrono::seconds(3));
-		std::cout << "Juz nie " << std::endl;
 		EngageSingleUserCommand();
 		//fallthrough
 	case ACK_RECEIVED:
