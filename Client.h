@@ -3,12 +3,13 @@
 #include <thread>
 
 #include "zmq.hpp"
+#include "SafeQueue.hpp"
 
 class Monitor;
 
 class Client {
 public:
-	Client(std::queue<int>& monitor_events, zmq::context_t& context);
+	Client(SafeQueue<int>& monitor_events, zmq::context_t& context);
 	~Client();
 
 	void connect(const std::string& address);
@@ -19,7 +20,7 @@ public:
 
 private:
 	std::string address_;
-	std::queue<int>& monitor_events_;
+	SafeQueue<int>& monitor_events_;
 	zmq::context_t& context_;
 	bool connected_;
 

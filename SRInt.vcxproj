@@ -105,6 +105,7 @@
     <ClInclude Include="DBObserver.h" />
     <ClInclude Include="Monitor.h" />
     <ClInclude Include="protobuf.pb.h" />
+    <ClInclude Include="SafeQueue.hpp" />
     <ClInclude Include="SRInt.h" />
     <ClInclude Include="UI.h" />
     <ClInclude Include="zhelpers.hpp" />

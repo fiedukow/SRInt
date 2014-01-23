@@ -3,7 +3,7 @@
 #include <cassert>
 #include "Monitor.h"
 
-Client::Client(std::queue<int>& monitor_events, zmq::context_t& context)
+Client::Client(SafeQueue<int>& monitor_events, zmq::context_t& context)
 	: monitor_events_(monitor_events), context_(context), socket_(NULL) {
 }
 

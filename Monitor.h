@@ -1,10 +1,11 @@
 #pragma once
 #include <queue>
 #include "zmq.hpp"
+#include "SafeQueue.hpp"
 
 class Monitor : public zmq::monitor_t {
 public:
-	Monitor(zmq::socket_t& socket, std::queue<int>& events);
+	Monitor(zmq::socket_t& socket, SafeQueue<int>& events);
 	virtual ~Monitor();
 	void operator()();
 
@@ -14,7 +15,7 @@ public:
 
 private:
 	zmq::socket_t& socket_;
-	std::queue<int>& events_;
+	SafeQueue<int>& events_;
 
 	int retries_;
 	std::string last_connected_addr_; // zmq ftw!!!!!

@@ -1,5 +1,4 @@
 #pragma once
-#include <queue>
 #include <functional>
 #include <map>
 
@@ -10,6 +9,7 @@
 #include "zmq.hpp"
 #include "Config.h"
 #include "Client.h"
+#include "SafeQueue.hpp"
 
 typedef std::function<void ()> UserCommand;
 
@@ -44,14 +44,14 @@ private:
 	void HandleReceivedMessageByStatus(ReceiveStatus status);
 
 	DB& db_;
-	std::queue<UserCommand> commands_queue_; // FIXME thread save (non-blocking) queue 
+	SafeQueue<UserCommand> commands_queue_;
 
 	zmq::context_t context_;	
 	zmq::socket_t server_;
 	Client client_;
 
 	// TODO Move this to another class
-	std::queue<int> monitor_events_; // FIXME thread save (non-blocking) queue 	
+	SafeQueue<int> monitor_events_;
 	bool was_in_network_;
 	int64 last_self_change_id_;
 

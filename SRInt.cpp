@@ -159,7 +159,7 @@ bool once = true;
 
 bool SRInt::HandleMonitorEvents() {
 	bool handled = false;
-	while (monitor_events_.size() > 0) {		
+	while (!monitor_events_.empty()) {		
 		switch (monitor_events_.front()) {
 			case ZMQ_EVENT_CONNECT_RETRIED:
 			case ZMQ_EVENT_DISCONNECTED:			

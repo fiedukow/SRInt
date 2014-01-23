@@ -71,6 +71,9 @@
     <ClInclude Include="Monitor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SafeQueue.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="protobuf.proto" />

@@ -5,7 +5,7 @@ const int kRetriesLimit = 5;
 
 int Monitor::next_monitor_index = 0;
 
-Monitor::Monitor(zmq::socket_t& socket, std::queue<int>& events)
+Monitor::Monitor(zmq::socket_t& socket, SafeQueue<int>& events)
 : socket_(socket), events_(events), retries_(0) {
 }
 
@@ -31,7 +31,6 @@ void Monitor::on_event_connect_retried(const zmq_event_t &event_, const char* ad
 }
 
 void Monitor::on_event_connected(const zmq_event_t &event_, const char* addr_) {
-	std::queue<int> empty;
-	std::swap(events_, empty);
+	events_.clear();
 	retries_ = 0;
 }
