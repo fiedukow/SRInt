@@ -1,6 +1,7 @@
 #ifdef _MSC_VER
 #define _CRT_SECURE_NO_WARNINGS
 #endif
+#define WAITING_FOR_ENTRY_TIMEOUT -1
 #include "SRInt.h"
 #include "DB.h"
 #include "zmq.hpp"
@@ -92,6 +93,7 @@ void SRInt::SendEntryRequest() {
 	msg.set_type(Message_MessageType_ENTRY_REQUEST);
 	msg.set_allocated_state_content(db_.state());
 	s_send(client_.socket(), msg.SerializeAsString());
+	entry_request_send_time_ = GetTickCount64();
 	msg.release_state_content();
 }
 
@@ -123,6 +125,8 @@ SRInt::ReceiveStatus SRInt::ReceiveMessage() {
 			}
 			assert(false);
 		case Message_MessageType_ENTRY_REQUEST: {
+			if (!was_in_network_)
+				return RECEIVING_ERROR;
 			Message_NodeDescription* new_node = msg.mutable_state_content()->mutable_nodes()->ReleaseLast();
 			commands_queue_.push(std::bind(&DB::addNode, &db_, new_node));
 			return NO_TOKEN_RECEIVED;
@@ -166,6 +170,9 @@ bool SRInt::HandleMonitorEvents() {
 				commands_queue_.push(std::bind(&DB::removeFollower, &db_));
 				handled = true;
 				break;
+			case WAITING_FOR_ENTRY_TIMEOUT:
+				handled = true;
+				break;
 			default: assert(false);
 		}
 		monitor_events_.pop();
@@ -180,6 +187,8 @@ bool SRInt::NetworkTokenShouldBeInitialized() {
 void SRInt::HandleReceivedMessageByStatus(ReceiveStatus status) {
 	switch (status) {
 	case RECEIVING_ERROR:
+		if (!was_in_network_ && entry_request_send_time_ + kTokenNotReceivedTimeoutMs < GetTickCount64())
+			monitor_events_.push(WAITING_FOR_ENTRY_TIMEOUT);
 		if (HandleMonitorEvents()) {
 			if (!was_in_network_) {
 				std::cout << "Nie udalo podlaczyc sie do wezla matki." << std::endl;

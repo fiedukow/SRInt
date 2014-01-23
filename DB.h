@@ -43,6 +43,8 @@ public:
 
 private:
 	Message_Variable* find_variable(const std::string& name);
+	void remove_ownership(const std::string& name, const Message_NodeDescription* node);
+	void on_node_removed(const Message_NodeDescription* node);
 
 public:
 	Message_State* state_;

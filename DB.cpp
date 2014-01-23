@@ -171,31 +171,7 @@ void StateHelper::ensure_ownership(const std::string& name) {
 }
 
 void StateHelper::remove_ownership(const std::string& name) {
-	Message_Variable* var = find_variable(name);
-	if (!var)
-		return;
-	
-	for (int i = 0; i < var->owners_size(); ++i) {
-		Message_NodeDescription* node = var->mutable_owners()->Mutable(i);
-		if (node->ip() == owner_node_->ip() &&
-			node->port() == owner_node_->port()) {
-			var->mutable_owners()->SwapElements(i, var->owners_size() - 1);
-			var->mutable_owners()->RemoveLast();
-			--i;
-		}
-	}
-
-	if (var->owners_size() > 0)
-		return;
-	
-	for (int i = 0; i < state_->variables_size(); ++i) {
-		Message_Variable* currentVar = state_->mutable_variables()->Mutable(i);
-		if (currentVar == var) {
-			state_->mutable_variables()->SwapElements(i, state_->variables_size() - 1);
-			state_->mutable_variables()->RemoveLast();
-			--i;
-		}
-	}
+	remove_ownership(name, owner_node_);
 }
 
 void StateHelper::add_variable(const std::string& name, int64 value) {
@@ -240,20 +216,21 @@ void StateHelper::add_node(Message_NodeDescription* new_node) {
 void StateHelper::remove_follower() {
 	assert(state_->nodes_size() > 1);
 	std::list<Message_NodeDescription*> new_nodes;
-	bool take_first = false;
+	Message_NodeDescription* removed = NULL;
 
 	while (state_->nodes_size() > 0) {
-		Message_NodeDescription* current = state_->mutable_nodes()->ReleaseLast();
+		Message_NodeDescription* current = state_->mutable_nodes()->ReleaseLast();		
 		if (current->ip() == owner_node_->ip() &&
 			current->port() == owner_node_->port()) {
-			assert(!take_first);
-			if (new_nodes.size() > 0)
+			assert(removed == NULL);
+			if (new_nodes.size() > 0) {
+				removed = new_nodes.front();
 				new_nodes.pop_front();
-			else
-				take_first = true;		}
+			}
+		}
 		new_nodes.push_front(current);
 	}
-	if (take_first)
+	if (removed == NULL)
 		new_nodes.pop_front();
 
 	assert(std::find_if(new_nodes.begin(),
@@ -320,5 +297,38 @@ Message_Variable* StateHelper::find_variable(const std::string& name) {
 		if (var.name() == name)
 			return &var;
 	return NULL;
+}
+
+void StateHelper::remove_ownership(const std::string& name, const Message_NodeDescription* node) {
+	Message_Variable* var = find_variable(name);
+	if (!var)
+		return;
+
+	for (int i = 0; i < var->owners_size(); ++i) {
+		Message_NodeDescription* node = var->mutable_owners()->Mutable(i);
+		if (node->ip() == node->ip() &&
+			node->port() == node->port()) {
+			var->mutable_owners()->SwapElements(i, var->owners_size() - 1);
+			var->mutable_owners()->RemoveLast();
+			--i;
+		}
+	}
+
+	if (var->owners_size() > 0)
+		return;
+
+	for (int i = 0; i < state_->variables_size(); ++i) {
+		Message_Variable* currentVar = state_->mutable_variables()->Mutable(i);
+		if (currentVar == var) {
+			state_->mutable_variables()->SwapElements(i, state_->variables_size() - 1);
+			state_->mutable_variables()->RemoveLast();
+			--i;
+		}
+	}
+}
+
+void StateHelper::on_node_removed(const Message_NodeDescription* node) {
+	for (Message_Variable& var : *(state_->mutable_variables()))
+		remove_ownership(var.name(), node);
 }
 

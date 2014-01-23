@@ -54,6 +54,7 @@ private:
 	SafeQueue<int> monitor_events_;
 	bool was_in_network_;
 	int64 last_self_change_id_;
+	int64 entry_request_send_time_;
 
 	Config cfg;
 };
