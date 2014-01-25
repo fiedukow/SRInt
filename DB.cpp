@@ -53,7 +53,6 @@ int64 DB::get(const std::string& name) {
 		notifyCallDoneObservers(done_message, false);
 		throw std::runtime_error("DB::get error");
 	}
-	state_.ensure_ownership(name);
 	notifyCallDoneObservers(done_message, true);
 	return state_.get(name);
 }
@@ -167,7 +166,9 @@ void StateHelper::ensure_ownership(const std::string& name) {
 	if (is_owner(name))
 		return;
 
+	int b = var->owners_size();
 	var->mutable_owners()->Add()->CopyFrom(*owner_node_);
+	int a = var->owners_size();
 }
 
 void StateHelper::remove_ownership(const std::string& name) {
@@ -230,8 +231,11 @@ void StateHelper::remove_follower() {
 		}
 		new_nodes.push_front(current);
 	}
-	if (removed == NULL)
+	if (removed == NULL) {
+		removed = new_nodes.front();
 		new_nodes.pop_front();
+	}
+	on_node_removed(removed);
 
 	assert(std::find_if(new_nodes.begin(),
 						new_nodes.end(),
@@ -305,9 +309,9 @@ void StateHelper::remove_ownership(const std::string& name, const Message_NodeDe
 		return;
 
 	for (int i = 0; i < var->owners_size(); ++i) {
-		Message_NodeDescription* node = var->mutable_owners()->Mutable(i);
-		if (node->ip() == node->ip() &&
-			node->port() == node->port()) {
+		Message_NodeDescription* current_node = var->mutable_owners()->Mutable(i);
+		if (current_node->ip() == node->ip() &&
+			current_node->port() == node->port()) {
 			var->mutable_owners()->SwapElements(i, var->owners_size() - 1);
 			var->mutable_owners()->RemoveLast();
 			--i;
@@ -328,7 +332,10 @@ void StateHelper::remove_ownership(const std::string& name, const Message_NodeDe
 }
 
 void StateHelper::on_node_removed(const Message_NodeDescription* node) {
+	std::list<std::string> names_to_remove_ownership;
 	for (Message_Variable& var : *(state_->mutable_variables()))
-		remove_ownership(var.name(), node);
+		names_to_remove_ownership.push_back(var.name());
+	for (const std::string& name : names_to_remove_ownership)
+		remove_ownership(name, node);
 }
 
